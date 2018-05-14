@@ -1,0 +1,53 @@
+%% coherence between speech and all egg channels using diiferent metric value
+clc; clear; close all;
+
+
+data_path = 'C:\Users\SMukherjee\Desktop\projects\listen_italian_motor_entrainment\analysis\python\data\partialCoh\';
+
+metric = 'coh';%
+metric_value='abs';%'abs' 'angle' 'complex'
+trailLen = 2;
+removedFirst = 0;
+feature = {'envelop';'jawaopening';'lipaparature';'TTCD';'TBCD';'TMCD';'lipProtrusion'};
+condition = {'hyper','normal','hypo','all'};
+delay = 0;
+subject_name = {'Alice','Lucrezia','Elena','Jonluca','Manu','Sara','Marco','Elisa','Pasquale','Linda','Leonardo','Gianluca1','Federica','Silvia','Andrea','Giorgia','Laura','Daniel','Giada','Pagani','Silvia2',...
+    'Elenora','Martina','Tommaso','Francesca'};
+
+remove_feature_contribution = {{'envelop'};{'jawaopening'};{'envelop'};{'lipaparature'};};
+
+for c=1:length(condition)
+    for d=1:length(delay)
+        for s = 1:length(subject_name)
+                fiff_file = [data_path 'partialCoh-trailLen-' num2str(trailLen) '-removedFirst-' num2str(removedFirst) 's-condition-' condition{c} '-delay-' num2str(delay(d)) 's-' Tommaso '.fif'];
+                ['featureCombination_' feature_combination{ff}{1} feature_combination{ff}{2} '_removing-' remove_feature_contribution{ff}{1}];
+                
+                
+                fiff_file = 'partialCoh-trailLen-2-removedFirst-0s-Alice.fif';
+                cfg = [];
+                cfg.dataset = fiff_file;
+                data = ft_preprocessing(cfg);
+                
+                cfg            = [];
+                cfg.output     = 'powandcsd';
+                cfg.method     = 'mtmfft';
+                cfg.taper      =  'hanning';
+                cfg.foilim    = [1 3];
+                cfg.pad        = 'nextpow2';
+                freqA           = ft_freqanalysis(cfg, data);
+                
+                cfgg            = [];
+                cfgg.method     = metric;
+                cfgg.complex     = metric_value;
+                % cfg.channelcmb = { 'EEG' feature_combination{ff}{:}};
+                cfg.channelcmb = { 'All'};
+                
+                cfgg.partchannel = remove_feature_contribution{ff};
+                a = ft_connectivityanalysis(cfgg, freqA);
+                
+                partialCoh=squeeze(mean(squeeze(a.cohspctrm(60:end,1:59,:)),3));
+                
+            end
+        end
+    end
+    
