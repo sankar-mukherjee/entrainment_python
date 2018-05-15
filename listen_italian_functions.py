@@ -93,9 +93,8 @@ def epoch(raw, mat,Tmin, Tmax):
 
 def coherence_measure(epochs,fmin, fmax,indices):
 	# calculate coherence
-	sfreq = epochs.info['sfreq']  # the sampling frequency
 	tmin = 0	# exclude the baseline period
-	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, n_jobs=1,verbose=None)
+	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=epochs.info['sfreq'], fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, n_jobs=1,verbose='ERROR')
 	return con, freqs, times, n_epochs, n_tapers
 	
 def coherence_freq(epochs,fmin, fmax,feature):
@@ -150,7 +149,35 @@ def coherence_preprocess_delay(epochs,remove_first,d,trial_len,extra_channels,ee
 	
 	return epoch	
 	
-	
+def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,features,eeg_channles,info,ch_names,event_id,no_surrogates,iter_freqs,indices):	
+
+    eeg = epochs.copy().drop_channels(features)
+    speech = epochs.copy().drop_channels(eeg_channles)
+    speech.drop_channels(ch_names)
+
+    E = eeg.copy().crop(d+remove_first,d+remove_first+trial_len)
+    S = speech.copy().crop(0.5+remove_first,0.5+remove_first+trial_len)
+    events = E.events
+
+    E = E.get_data()
+    S = S.get_data()
+    a = np.arange(0,S.shape[0])
+
+    frames = np.zeros((413,len(iter_freqs),no_surrogates))
+    for i in range(no_surrogates):
+        print('--------------------'+str(i))
+        np.random.shuffle(a)
+        EE = E.copy()
+        SS = S.copy()	
+        c = np.concatenate((EE[a],SS[a]),axis=1)
+        epochs = mne.EpochsArray(c, info, events, 0,event_id)
+        for fr in range(0,len(iter_freqs)):
+            fmin = iter_freqs[fr][1]
+            fmax = iter_freqs[fr][2]
+            coh, freqs, times, n_epochs, n_tapers = coherence_measure(epochs,fmin, fmax,indices)
+            frames[:,fr,i] = coh[:,0]
+           
+    return frames	
 	
 	
 	
