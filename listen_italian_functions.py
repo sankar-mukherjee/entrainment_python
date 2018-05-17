@@ -92,10 +92,10 @@ def epoch(raw, mat,Tmin, Tmax):
 	epochs = mne.EpochsArray(c, info, events, tmin, event_id)
 	return epochs
 
-def coherence_measure(epochs,fmin, fmax,indices):
+def coherence_measure(epochs,fmin, fmax,sfreq,indices):
 	# calculate coherence
 	tmin = 0	# exclude the baseline period
-	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=epochs.info['sfreq'], fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, n_jobs=1,verbose='ERROR')
+	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, n_jobs=1,verbose='ERROR')
 	return con, freqs, times, n_epochs, n_tapers
 	
 def coherence_freq(epochs,fmin, fmax,feature):
@@ -159,7 +159,8 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
     E = eeg.copy().crop(d+remove_first,d+remove_first+trial_len)
     S = speech.copy().crop(0.5+remove_first,0.5+remove_first+trial_len)
     events = E.events
-
+    sfreq = E.info['sfreq']
+    
     E = E.get_data()
     S = S.get_data()
     a = np.arange(0,S.shape[0])
@@ -171,11 +172,11 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
         EE = E.copy()
         SS = S.copy()	
         c = np.concatenate((EE[a],SS[a]),axis=1)
-        epochs = mne.EpochsArray(c, info, events, 0,event_id)
+        #epochs = mne.EpochsArray(c, info, events, 0,event_id)
         for fr in range(0,len(iter_freqs)):
             fmin = iter_freqs[fr][1]
             fmax = iter_freqs[fr][2]
-            coh, freqs, times, n_epochs, n_tapers = coherence_measure(epochs,fmin, fmax,indices)
+            coh, freqs, times, n_epochs, n_tapers = coherence_measure(c,fmin, fmax,sfreq,indices)
             frames[:,fr,i] = coh[:,0]
         clear_output()  
     return frames	
