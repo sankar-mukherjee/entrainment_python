@@ -3,6 +3,7 @@ from mne.event import define_target_events
 import mne
 import numpy as np
 from mne.connectivity import spectral_connectivity
+from IPython.display import clear_output
 
 def epoch(raw, mat,Tmin, Tmax):
 	# ignore stimuli shorter than tmax ms
@@ -176,7 +177,7 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
             fmax = iter_freqs[fr][2]
             coh, freqs, times, n_epochs, n_tapers = coherence_measure(epochs,fmin, fmax,indices)
             frames[:,fr,i] = coh[:,0]
-           
+        clear_output()  
     return frames	
 	
 	

@@ -5,7 +5,7 @@ data_path = '..\data\partialCoh\';
 % data_path = '\\10.96.7.1\projects\current\listen_italian_motor_entrainment\analysis\python\data\partialCoh\';
 
 trailLen = 2;
-removedFirst = 0;
+removedFirst = 0.5;
 feature = {'envelop';'jawaopening';'lipaparature';'TTCD';'TBCD';'TMCD';'lipProtrusion'};
 condition = {'Hyper','Normal','Hypo','All'};
 delay = 0:0.1:1;
@@ -113,7 +113,7 @@ data.Delay = horzcat(data1.Delay{:});
 data.Data = horzcat(data1.Data{:});
 data.noTrials = horzcat(data1.noTrials{:});
 data.Subject = horzcat(data1.Subject{:});
-save([data_path 'PartialCoherence.mat'],'data','freq');
+save([data_path 'PartialCoherence_' num2str(removedFirst) '.mat'],'data','freq');
 
 
 
