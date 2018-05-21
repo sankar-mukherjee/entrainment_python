@@ -95,7 +95,7 @@ def epoch(raw, mat,Tmin, Tmax):
 def coherence_measure(epochs,fmin, fmax,sfreq,indices):
 	# calculate coherence
 	tmin = 0	# exclude the baseline period
-	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, n_jobs=1,verbose='ERROR')
+	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, block_size=1000, n_jobs=1,verbose='ERROR')
 	return con, freqs, times, n_epochs, n_tapers
 	
 def coherence_freq(epochs,fmin, fmax,feature):
@@ -171,7 +171,7 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
         np.random.shuffle(a)
         EE = E.copy()
         SS = S.copy()	
-        c = np.concatenate((EE[a],SS[a]),axis=1)
+        c = np.concatenate((EE,SS[a]),axis=1)
         #epochs = mne.EpochsArray(c, info, events, 0,event_id)
         for fr in range(0,len(iter_freqs)):
             fmin = iter_freqs[fr][1]
