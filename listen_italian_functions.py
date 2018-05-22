@@ -95,7 +95,7 @@ def epoch(raw, mat,Tmin, Tmax):
 def coherence_measure(epochs,fmin, fmax,sfreq,indices):
 	# calculate coherence
 	tmin = 0	# exclude the baseline period
-	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, block_size=1000, n_jobs=1,verbose='ERROR')
+	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='fourier', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, block_size=1000, n_jobs=1,verbose='ERROR')
 	return con, freqs, times, n_epochs, n_tapers
 	
 def coherence_freq(epochs,fmin, fmax,feature):
