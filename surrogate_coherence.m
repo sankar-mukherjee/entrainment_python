@@ -8,13 +8,17 @@ trailLen = 2;
 removedFirst = 0.5;
 feature = {'envelop';'jawaopening';'lipaparature';'TTCD';'TBCD';'TMCD';'lipProtrusion'};
 condition = {'Hyper','Normal','Hypo','All'};
+condition = {'All'};
+
 delay = 0:0.1:1;
 
 subject_name = {'Alice','Lucrezia','Elena','Jonluca','Manu','Sara','Marco','Elisa','Pasquale','Linda','Leonardo','Gianluca1','Federica','Silvia','Andrea','Giorgia','Laura','Daniel','Giada','Pagani','Silvia2',...
     'Elenora','Martina','Tommaso','Francesca'};
 
 freq_band = [1:40];
-permute_no = 500;
+freq_band = [1:10];
+
+permute_no = 100;
 
 for s = 1:length(subject_name)
     k=1;
@@ -51,28 +55,31 @@ for s = 1:length(subject_name)
             speech = ft_selectdata(cfg,A);
             speech  = cat(3,speech.trial{:});
             
+            cfg            = [];
+            cfg.output     = 'powandcsd';
+            cfg.method     = 'mtmfft';
+            cfg.taper      =  'hanning';
+            cfg.foi        = freq_band;
+            cfg.pad        = 'nextpow2';
+            cfg.channelcmb = {'EEG' feature{1};'EEG' feature{2};'EEG' feature{3};'EEG' feature{4};'EEG' feature{5};'EEG' feature{6};'EEG' feature{7}};
+            cfgg            = [];
+            cfgg.method     = 'coh';
+            cfgg.complex     = 'abs';
+            
             B = zeros(413,length(freq_band),permute_no);
             a = 1:length(A.trial);
-            for p=1:permute_no
-                a = datasample(a,length(a));
-                b = cat(1, eeg, speech(:,:,a));
+            parfor p=1:permute_no
+                pp = datasample(a,length(a));
+                b = cat(1, eeg, speech(:,:,pp));
                 b = squeeze(num2cell(b,[1 2]))';
                 
-                A.trial = b;
+                BB = A;
+                BB.trial = b;               
                 
-                cfg            = [];
-                cfg.output     = 'powandcsd';
-                cfg.method     = 'mtmfft';
-                cfg.taper      =  'hanning';
-                cfg.foi        = freq_band;
-                cfg.pad        = 'nextpow2';
-                cfg.channelcmb = {'EEG' feature{1};'EEG' feature{2};'EEG' feature{3};'EEG' feature{4};'EEG' feature{5};'EEG' feature{6};'EEG' feature{7}};
-                freqA          = ft_freqanalysis(cfg, A);
-                cfg            = [];
-                cfg.method     = 'coh';
-                cfg.complex     = 'abs';
-                freqA = ft_connectivityanalysis(cfg, freqA);
-                B(:,:,p) = freqA.cohspctrm;
+                freqA          = ft_freqanalysis(cfg, BB);                
+                x = ft_connectivityanalysis(cfgg, freqA);
+                B(:,:,p) = x.cohspctrm;
+                disp(['------------' num2str(p)])
             end
             
             b = reshape(1:413,59,7);
@@ -89,7 +96,7 @@ for s = 1:length(subject_name)
         end
     end
     
-    freq=freqA.freq;
+    freq=freq_band;
     save(['..\data\SurrogateCoherence\SurrogateCoherence-' subject_name{s} '.mat'],'data','freq');
 end
 
