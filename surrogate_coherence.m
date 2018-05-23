@@ -11,14 +11,12 @@ condition = {'Hyper','Normal','Hypo','All'};
 condition = {'All'};
 
 delay = 0:0.1:1;
-
 subject_name = {'Alice','Lucrezia','Elena','Jonluca','Manu','Sara','Marco','Elisa','Pasquale','Linda','Leonardo','Gianluca1','Federica','Silvia','Andrea','Giorgia','Laura','Daniel','Giada','Pagani','Silvia2',...
     'Elenora','Martina','Tommaso','Francesca'};
 
 freq_band = [1:40];
-freq_band = [1:10];
 
-permute_no = 100;
+permute_no = 500;
 
 for s = 1:length(subject_name)
     k=1;
@@ -28,6 +26,7 @@ for s = 1:length(subject_name)
     data.Condition = [];
     data.Delay = [];
     data.Data = [];
+    data.Surrogate = [];
     data.noTrials = [];
     data.Subject = [];
     for c=1:length(condition)
@@ -66,6 +65,10 @@ for s = 1:length(subject_name)
             cfgg.method     = 'coh';
             cfgg.complex     = 'abs';
             
+            % original
+            freqA          = ft_freqanalysis(cfg, A);
+            X = ft_connectivityanalysis(cfgg, freqA);
+            
             B = zeros(413,length(freq_band),permute_no);
             a = 1:length(A.trial);
             parfor p=1:permute_no
@@ -74,12 +77,16 @@ for s = 1:length(subject_name)
                 b = squeeze(num2cell(b,[1 2]))';
                 
                 BB = A;
-                BB.trial = b;               
+                BB.trial = b;
                 
-                freqA          = ft_freqanalysis(cfg, BB);                
+                freqA          = ft_freqanalysis(cfg, BB);
                 x = ft_connectivityanalysis(cfgg, freqA);
                 B(:,:,p) = x.cohspctrm;
+                
+%                 aa = mean(x.cohspctrm(1:59,1:3),2);
+%                 plot(aa);hold on;
                 disp(['------------' num2str(p)])
+%                 pause(0.5)
             end
             
             b = reshape(1:413,59,7);
@@ -88,11 +95,13 @@ for s = 1:length(subject_name)
                 data.Feature{k} = feature{ff};
                 data.Condition{k} = condition{c};
                 data.Delay{k} = num2str(delay(d));
-                data.Data{k} = mean(B(b(:,ff),:,:),3);
+                data.Data{k} = X.cohspctrm(b(:,ff),:);
+                data.Surrogate{k} = mean(B(b(:,ff),:,:),3);
                 data.noTrials{k} = length(A.trial);
                 data.Subject{k} = subject_name{s};
                 k=k+1;
             end
+%             figure;imagesc(data.Data{1, 1} -data.Surrogate{1, 1});
         end
     end
     
@@ -110,6 +119,7 @@ data.Feature = [];
 data.Condition = [];
 data.Delay = [];
 data.Data = [];
+data.Surrogate = [];
 data.noTrials = [];
 data.Subject = [];
 
@@ -120,6 +130,7 @@ for k = 1:length(subject_name)
     data.Condition{k} = a.data.Condition;
     data.Delay{k} = a.data.Delay;
     data.Data{k} = a.data.Data;
+    data.Surrogate{k} = a.data.Surrogate;
     data.noTrials{k} = a.data.noTrials;
     data.Subject{k} = a.data.Subject;
 end
@@ -129,6 +140,7 @@ data.Feature = horzcat(data1.Feature{:});
 data.Condition = horzcat(data1.Condition{:});
 data.Delay = horzcat(data1.Delay{:});
 data.Data = horzcat(data1.Data{:});
+data.Data = horzcat(data1.Surrogate{:});
 data.noTrials = horzcat(data1.noTrials{:});
 data.Subject = horzcat(data1.Subject{:});
 save([data_path 'SurrogateCoherence-' num2str(removedFirst) '.mat'],'data','freq');
