@@ -165,6 +165,12 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
     S = S.get_data()
     a = np.arange(0,S.shape[0])
 
+    fmin = []
+    fmax = []
+    for fr in range(0,len(iter_freqs)):
+        fmin.append(iter_freqs[fr][1])
+        fmax.append(iter_freqs[fr][2])
+    
     frames = np.zeros((413,len(iter_freqs),no_surrogates))
     for i in range(no_surrogates):
         print('--------------------'+str(i))
@@ -174,10 +180,8 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
         c = np.concatenate((EE,SS[a]),axis=1)
         #epochs = mne.EpochsArray(c, info, events, 0,event_id)
         for fr in range(0,len(iter_freqs)):
-            fmin = iter_freqs[fr][1]
-            fmax = iter_freqs[fr][2]
             coh, freqs, times, n_epochs, n_tapers = coherence_measure(c,fmin, fmax,sfreq,indices)
-            frames[:,fr,i] = coh[:,0]
+            frames[:,fr,i] = coh[:,fr]
         clear_output()  
     return frames	
 	

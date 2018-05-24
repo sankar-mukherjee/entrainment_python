@@ -140,7 +140,7 @@ data.Feature = horzcat(data1.Feature{:});
 data.Condition = horzcat(data1.Condition{:});
 data.Delay = horzcat(data1.Delay{:});
 data.Data = horzcat(data1.Data{:});
-data.Data = horzcat(data1.Surrogate{:});
+data.Surrogate = horzcat(data1.Surrogate{:});
 data.noTrials = horzcat(data1.noTrials{:});
 data.Subject = horzcat(data1.Subject{:});
 save([data_path 'SurrogateCoherence-' num2str(removedFirst) '.mat'],'data','freq');
