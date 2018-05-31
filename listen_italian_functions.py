@@ -4,6 +4,7 @@ import mne
 import numpy as np
 from mne.connectivity import spectral_connectivity
 from IPython.display import clear_output
+from itertools import permutations
 
 def epoch(raw, mat,Tmin, Tmax):
 	# ignore stimuli shorter than tmax ms
@@ -172,7 +173,7 @@ def coherence_preprocess_delay(epochs,remove_first,d,trial_len,extra_channels,ee
 
  
 	
-def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,features,eeg_channles,info,ch_names,event_id,no_surrogates,iter_freqs,indices):	
+def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,features,eeg_channles,info,ch_names,event_id,iter_freqs,indices):	
 
     eeg = epochs.copy().drop_channels(features)
     speech = epochs.copy().drop_channels(eeg_channles)
@@ -185,7 +186,6 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
     
     E = E.get_data()
     S = S.get_data()
-    a = np.arange(0,S.shape[0])
 
     fmin = []
     fmax = []
@@ -193,13 +193,37 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
         fmin.append(iter_freqs[fr][1])
         fmax.append(iter_freqs[fr][2])
     
+    # all possible combination
+    trial_length=S.shape[0]
+    a = list(permutations(np.arange(0,trial_length), 2))
+    a = np.asarray(a)
+    X = np.arange(0,trial_length)
+
+    no_surrogates = 500 #dummy value
+    B=[]
+    for j in range(no_surrogates):
+        X = np.roll(X,1)
+        while True:
+            A,a = get_combinations(X,a)        
+            if A.shape[0] == trial_length:
+                B.append(A)
+                break
+            elif len(a)==0:
+                break
+            else:
+                X = np.roll(X,1)
+                print('.',end=' ')
+    
+    B = np.asarray(B)
+    no_surrogates = len(B)
+    ##
     frames = np.zeros((413,len(iter_freqs),no_surrogates))
     for i in range(no_surrogates):
         print('--------------------'+str(i))
-        np.random.shuffle(a)
         EE = E.copy()
-        SS = S.copy()	
-        c = np.concatenate((EE,SS[a]),axis=1)
+        SS = S.copy()       
+        
+        c = np.concatenate((EE[B[i][:,0]],SS[B[i][:,1]]),axis=1)
         #epochs = mne.EpochsArray(c, info, events, 0,event_id)
         for fr in range(0,len(iter_freqs)):
             coh, freqs, times, n_epochs, n_tapers = coherence_measure(c,fmin, fmax,sfreq,indices)
@@ -208,4 +232,22 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
     return frames	
 	
 	
-	
+def get_combinations(X,a):
+    aa = a
+    A=[]
+    EEG = []
+    Speech = []
+    for i in range(0,len(X)):
+        b = np.where(a[:,0]==X[i])
+        if not len(b[0]) == 0:
+            for k in range(len(b[0])):
+                if not a[b[0][k],1] in Speech:
+                    A.append(a[b[0][k],:])
+                    EEG.append(a[b[0][k],0])
+                    Speech.append(a[b[0][k],1])
+                    a = np.delete(a, b[0][k], 0)
+                    break
+    if len(A) == len(X):                    
+        return np.asarray(A),a
+    else:
+        return np.asarray(A),aa	
