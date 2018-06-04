@@ -4,7 +4,7 @@ import mne
 import numpy as np
 from mne.connectivity import spectral_connectivity
 from IPython.display import clear_output
-from itertools import permutations
+from itertools import permutations,combinations
 
 def epoch(raw, mat,Tmin, Tmax):
 	# ignore stimuli shorter than tmax ms
@@ -170,6 +170,43 @@ def coherence_preprocess_delay(epochs,remove_first,d,trial_len,extra_channels,ee
 
     return frames	
 	
+
+
+def partialCoherence_preprocess_delay(epochs,remove_first,d,trial_len,extra_channels,
+                                                      eeg_channles,info,ch_names,event_id,fmin,fmax,condition):	
+
+    eeg = epochs.copy().drop_channels(extra_channels)
+    speech = epochs.copy().drop_channels(eeg_channles)
+    speech.drop_channels(ch_names)
+
+    E = eeg.copy().crop(d+remove_first,d+remove_first+trial_len)
+    S = speech.copy().crop(0.5+remove_first,0.5+remove_first+trial_len)
+
+    events = E.events
+    sfreq = E.info['sfreq']    
+    c = np.concatenate((E.get_data(),S.get_data()),axis=1)
+    epochs = mne.EpochsArray(c, info, E.events, 0,event_id)
+
+    if condition != 'All':
+            c = epochs[condition].copy()
+    else:
+        c = epochs.copy()
+    
+    psds, freqs = mne.time_frequency.psd_multitaper(c, fmin=fmin, fmax=fmax)
+    csd_mt =  mne.time_frequency.csd_multitaper(c, fmin=fmin, fmax=fmax, adaptive=True)
+    b = csd_mt.mean().get_data()
+    csd = b[np.triu_indices(b.shape[0], k = 1)]
+    labelcomb = list(combinations(csd_mt.ch_names, 2))
+    label = np.zeros((len(csd_mt.ch_names),), dtype=np.object)
+    label[:] = csd_mt.ch_names
+    b = np.zeros((len(labelcomb),2), dtype=np.object)
+    b[:] = labelcomb
+    frames = {'freq': freqs.mean(),'powspctrm': psds.mean(axis=0).mean(axis=1),
+         'crsspctrm':csd,'label':label,'labelcmb':b,'dimord':'chan_freq'}    
+    clear_output()  
+
+    return frames
+
 
  
 	

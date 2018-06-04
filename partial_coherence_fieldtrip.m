@@ -2,7 +2,7 @@
 clc; clear; close all;
 
 data_path = '..\data\partialCoh\';
-% data_path = '\\10.96.7.1\projects\current\listen_italian_motor_entrainment\analysis\python\data\partialCoh\';
+data_path = '\\10.96.7.1\projects\current\listen_italian_motor_entrainment\analysis\python\data\partialCoh\';
 
 trailLen = 2;
 removedFirst = 0.5;
