@@ -83,6 +83,7 @@ data.Feature = [];
 data.RemovedFeature = [];
 data.Condition = [];
 data.Delay = [];
+data.Frequency = [];
 data.Data = [];
 data.Subject = [];
 
@@ -93,6 +94,7 @@ for k = 1:length(subject_name)
     data.RemovedFeature{k} = a.data.RemovedFeature;
     data.Condition{k} = a.data.Condition;
     data.Delay{k} = a.data.Delay;
+    data.Frequency{k} = a.data.Frequency;
     data.Data{k} = a.data.Data;
     data.Subject{k} = a.data.Subject;
 end
@@ -102,6 +104,7 @@ data.Feature = horzcat(data1.Feature{:});
 data.RemovedFeature = horzcat(data1.RemovedFeature{:});
 data.Condition = horzcat(data1.Condition{:});
 data.Delay = horzcat(data1.Delay{:});
+data.Frequency = horzcat(data1.Frequency{:});
 data.Data = horzcat(data1.Data{:});
 data.Subject = horzcat(data1.Subject{:});
 save([data_path 'PartialCoherence_' num2str(removedFirst) '.mat'],'data','freq');
