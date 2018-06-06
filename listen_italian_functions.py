@@ -188,7 +188,7 @@ def partialCoherence_preprocess_delay(epochs,remove_first,d,trial_len,extra_chan
     epochs = mne.EpochsArray(c, info, E.events, 0,event_id)
 
     if condition != 'All':
-            c = epochs[condition].copy()
+        c = epochs[condition].copy()
     else:
         c = epochs.copy()
     
