@@ -5,6 +5,8 @@ import numpy as np
 from mne.connectivity import spectral_connectivity
 from IPython.display import clear_output
 from itertools import permutations,combinations
+from scipy import stats
+from mne.stats import bonferroni_correction, fdr_correction
 
 def epoch(raw, mat,Tmin, Tmax):
 	# ignore stimuli shorter than tmax ms
@@ -95,8 +97,7 @@ def epoch(raw, mat,Tmin, Tmax):
 
 def coherence_measure(epochs,fmin, fmax,sfreq,indices):
 	# calculate coherence
-	tmin = 0	# exclude the baseline period
-	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=tmin, mt_adaptive=False, block_size=1000, n_jobs=1,verbose='ERROR')
+	con, freqs, times, n_epochs, n_tapers = spectral_connectivity(epochs, method='coh',mode='multitaper', sfreq=sfreq, fmin=fmin, fmax=fmax,indices=indices,faverage=True, tmin=0, mt_adaptive=False, block_size=1000, n_jobs=1,verbose='ERROR')
 	return con, freqs, times, n_epochs, n_tapers
 	
 def coherence_freq(epochs,fmin, fmax,feature):
@@ -269,6 +270,135 @@ def coherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feature
     return frames	
 	
 	
+def get_partialCoherence(conXY,conXR,conRY,fr):
+    partial_coh_XY_R=[]
+    for i in range(59):
+        a = (abs(conXY[i,fr]-conXR[i,fr]*conRY[fr])**2) / ((1-abs(conXR[i,fr])**2)*(1-abs(conRY[fr])**2))
+        partial_coh_XY_R.append(a)
+
+    partial_coh_XY_R = np.asarray(partial_coh_XY_R)
+    
+    return partial_coh_XY_R
+
+
+
+def PartialCoherence_preprocess_delay_surrogate(epochs,remove_first,d,trial_len,feat,
+                                                eeg_channles,keep_feat,condition,iter_freqs):	
+
+    
+    keep_feat = np.unique(keep_feat)
+    ##############
+    if condition != 'All':
+        E = epochs[condition].copy()
+    else:
+        E = epochs.copy()
+    
+    eeg = E.copy().drop_channels(feat)
+    speech = E.copy().drop_channels(eeg_channles)
+    
+    a = np.setdiff1d(feat, keep_feat)
+    speech.drop_channels(a)
+
+    E = eeg.copy().crop(d+remove_first,d+remove_first+trial_len)
+    S = speech.copy().crop(0.5+remove_first,0.5+remove_first+trial_len)
+    
+    sfreq = E.info['sfreq']
+    
+    E = E.get_data()
+    S = S.get_data()
+
+    label = np.concatenate((eeg.ch_names,speech.ch_names))
+    
+    ##################### all possible combination
+    trial_length=S.shape[0]
+    a = list(permutations(np.arange(0,trial_length), 2))
+    a = np.asarray(a)
+    X = np.arange(0,trial_length)
+
+    no_surrogates = 500 #dummy value
+    B=[]
+    for j in range(no_surrogates):
+        X = np.roll(X,1)
+        while True:
+            A,a = get_combinations(X,a)        
+            if A.shape[0] == trial_length:
+                B.append(A)
+                break
+            elif len(a)==0:
+                break
+            else:
+                X = np.roll(X,1)
+                print('.',end=' ')
+    
+    B = np.asarray(B)
+    no_surrogates = len(B)
+    
+    #######################################à
+    fmin = []
+    fmax = []
+    for fr in range(0,len(iter_freqs)):
+        fmin.append(iter_freqs[fr][1])
+        fmax.append(iter_freqs[fr][2])  
+    
+    #######################################
+    
+    indices = []
+    for idx in keep_feat:
+        b=np.where(label==idx)[0][0]
+        b = (np.repeat(b,59),np.arange(0,59))
+        indices.append(b)
+    
+    a = list(permutations(keep_feat, 2))
+    for idx in range(0,len(a)):
+        b=np.where(label==a[idx][0])[0][0]
+        c=np.where(label==a[idx][1])[0][0]
+        d = (np.repeat(b,1),np.repeat(c,1))
+        indices.append(d)
+    
+    INDEX = []
+    b=0
+    for idx in range(0,len(indices)):
+        a = np.arange(b,b+len(indices[idx][0]))
+        INDEX.append(a)
+        b = b+len(a)
+    
+    indices = np.concatenate((indices),axis=1)
+    indices = (indices[0],indices[1])
+
+    
+    #####################################################################    
+    frames = np.zeros((2,59,len(iter_freqs),no_surrogates))
+    for i in range(no_surrogates):
+        print('--------------------'+str(i))
+        EE = E.copy()
+        SS = S.copy()
+        c = np.concatenate((EE[B[i][:,0]],SS[B[i][:,1]]),axis=1)
+        
+        coh = get_coherence(c,sfreq,fmin,fmax,indices)
+        for iii in range(0,1):
+            if iii ==0:
+                conXY = coh[INDEX[0],:]
+                conXR = coh[INDEX[1],:]
+            else:
+                conXY = coh[INDEX[1],:]
+                conXR = coh[INDEX[0],:]
+            
+            conRY = coh[INDEX[2],:][0]
+
+            for f in range(0,len(iter_freqs)):
+                frames[iii,:,f,i] = get_partialCoherence(conXY,conXR,conRY,f)
+        clear_output()  
+        
+    return frames
+
+def get_coherence(epochs,sfreq,fmin,fmax,indices):
+    con, freqs, times, n_epochs, n_tapers = mne.connectivity.spectral_connectivity(epochs, method='coh',mode='multitaper', 
+                                                                                   sfreq=sfreq, 
+                                                              fmin=fmin, fmax=fmax,indices=indices,faverage=True, 
+                                                              tmin=0, mt_adaptive=False, block_size=1000,verbose='ERROR')
+
+    return con
+
 def get_combinations(X,a):
     aa = a
     A=[]
@@ -288,3 +418,66 @@ def get_combinations(X,a):
         return np.asarray(A),a
     else:
         return np.asarray(A),aa	
+    
+    
+    
+def run_permutation_test(x,y,numSamples):
+    pooled = np.hstack([x,y])
+    d0 = abs(x.mean() - y.mean())
+    d = np.zeros((numSamples,))
+    for k in range(numSamples):
+        np.random.shuffle(pooled)
+        starZ = pooled[:len(x)]
+        starY = pooled[-len(y):]    
+        d[k] = abs(starZ.mean() - starY.mean())
+
+    p = len(np.where( d >= d0 )[0])
+    p = p / float(numSamples)
+    p = np.round(p,decimals=3)
+
+    return p
+    
+    
+
+def get_P_value2(data,feat_comb,freq_band,condition,delay,subject_name):
+    A = []    
+    for c in condition:
+        for fr in freq_band:        
+            for d in delay:
+                group1 = data.loc[feat_comb[0][0],d,feat_comb[0][1],d,fr,c,subject_name]['partialCoh']
+                group2 = data.loc[feat_comb[1][0],d,feat_comb[1][1],d,fr,c,subject_name]['partialCoh']
+                p = run_permutation_test(group1.get_values(),group2.get_values(),10000)
+
+                #reject_fdr, p = fdr_correction(p, alpha=0.05, method='indep')
+                a = pd.DataFrame({'Delay':d,'Freq':fr,'Condition':c,'p-value':[p]})
+                A.append(a)
+                
+    P = pd.concat((A),axis=0)
+    return P    
+    
+    
+
+def get_P_value(data,feat_comb,freq_band,condition,delay,subject_name):
+    A = []    
+    for c in condition:
+        for fr in freq_band:        
+            for d in delay:
+                group1 = data.loc[feat_comb[0][0],d,feat_comb[0][1],d,fr,c,subject_name]['partialCoh']
+                group2 = data.loc[feat_comb[1][0],d,feat_comb[1][1],d,fr,c,subject_name]['partialCoh']
+                t,p = stats.ttest_rel(group1.get_values(),group2.get_values())
+                #reject_fdr, p = fdr_correction(p, alpha=0.05, method='indep')
+                a = pd.DataFrame({'Delay':d,'Freq':fr,'Condition':c,'p-value':[p]})
+                A.append(a)
+                
+    P = pd.concat((A),axis=0)
+    return P     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
