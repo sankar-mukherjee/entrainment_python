@@ -173,40 +173,22 @@ def coherence_preprocess_delay(epochs,remove_first,d,trial_len,extra_channels,ee
 	
 
 
-def partialCoherence_preprocess_delay(epochs,remove_first,d,trial_len,extra_channels,
-                                                      eeg_channles,info,ch_names,event_id,fmin,fmax,condition):	
-
-    eeg = epochs.copy().drop_channels(extra_channels)
-    speech = epochs.copy().drop_channels(eeg_channles)
-    speech.drop_channels(ch_names)
-
-    E = eeg.copy().crop(d+remove_first,d+remove_first+trial_len)
-    S = speech.copy().crop(0.5+remove_first,0.5+remove_first+trial_len)
-
-    events = E.events
-    sfreq = E.info['sfreq']    
-    c = np.concatenate((E.get_data(),S.get_data()),axis=1)
-    epochs = mne.EpochsArray(c, info, E.events, 0,event_id)
+def partialCoherence_preprocess_delay(epochs,remove_first,d,trial_len,feat,keep_feat,condition):	
 
     if condition != 'All':
-        c = epochs[condition].copy()
+        E = epochs[condition].copy()
     else:
-        c = epochs.copy()
+        E = epochs.copy()
     
-    psds, freqs = mne.time_frequency.psd_multitaper(c, fmin=fmin, fmax=fmax)
-    csd_mt =  mne.time_frequency.csd_multitaper(c, fmin=fmin, fmax=fmax, adaptive=True)
-    b = csd_mt.mean().get_data()
-    csd = b[np.triu_indices(b.shape[0], k = 1)]
-    labelcomb = list(combinations(csd_mt.ch_names, 2))
-    label = np.zeros((len(csd_mt.ch_names),), dtype=np.object)
-    label[:] = csd_mt.ch_names
-    b = np.zeros((len(labelcomb),2), dtype=np.object)
-    b[:] = labelcomb
-    frames = {'freq': freqs.mean(),'powspctrm': psds.mean(axis=0).mean(axis=1),
-         'crsspctrm':csd,'label':label,'labelcmb':b,'dimord':'chan_freq'}    
-    clear_output()  
+    
+    a = np.setdiff1d(feat, keep_feat)
+    eeg = E.copy().drop_channels(a)
 
-    return frames
+    E = eeg.copy().crop(d+remove_first,d+remove_first+trial_len)
+
+    c = E.get_data()
+
+    return c
 
 
  
@@ -437,7 +419,26 @@ def run_permutation_test(x,y,numSamples):
 
     return p
     
-    
+def run_permutation_test2(x,y,numSamples):
+    #keeping the subject association
+    pooled = np.vstack([x,y]).T
+    d0 = abs(x.mean() - y.mean())
+    d = np.zeros((numSamples,))
+    for k in range(numSamples):
+        for i in range(len(x)):
+            a = pooled[i]
+            np.random.shuffle(a)
+            pooled[i] = a
+            
+        starZ = pooled[:,0]
+        starY = pooled[:,1]    
+        d[k] = abs(starZ.mean() - starY.mean())
+
+    p = len(np.where( d >= d0 )[0])
+    p = p / float(numSamples)
+    p = np.round(p,decimals=3)
+
+    return p    
 
 def get_P_value2(data,feat_comb,freq_band,condition,delay,subject_name):
     A = []    
@@ -446,7 +447,7 @@ def get_P_value2(data,feat_comb,freq_band,condition,delay,subject_name):
             for d in delay:
                 group1 = data.loc[feat_comb[0][0],d,feat_comb[0][1],d,fr,c,subject_name]['partialCoh']
                 group2 = data.loc[feat_comb[1][0],d,feat_comb[1][1],d,fr,c,subject_name]['partialCoh']
-                p = run_permutation_test(group1.get_values(),group2.get_values(),10000)
+                p = run_permutation_test2(group1.get_values(),group2.get_values(),10000)
 
                 #reject_fdr, p = fdr_correction(p, alpha=0.05, method='indep')
                 a = pd.DataFrame({'Delay':d,'Freq':fr,'Condition':c,'p-value':[p]})
@@ -470,11 +471,22 @@ def get_P_value(data,feat_comb,freq_band,condition,delay,subject_name):
                 A.append(a)
                 
     P = pd.concat((A),axis=0)
-    return P     
+    return P 
+
+def get_P_value_coherence(data,extra_channels,freq_band,condition,delay,subject_name,numSamples):
+    A = []
     
-    
-    
-    
+    for c in condition:
+        for fr in freq_band:        
+            for d in delay:
+                group1 = data.loc[extra_channels[0],fr,c,d,subject_name]['Coherence']
+                group2 = data.loc[extra_channels[1],fr,c,d,subject_name]['Coherence']
+                a = run_permutation_test2(group1.get_values(),group2.get_values(),numSamples)
+                p = pd.DataFrame({'Delay':d,'Freq':fr,'Condition':c,'FeatureTest':[extra_channels],'p-value':a})
+                A.append(p)
+                
+    P = pd.concat((A),axis=0)
+    return P   
     
     
     
