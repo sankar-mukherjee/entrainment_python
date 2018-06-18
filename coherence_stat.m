@@ -30,7 +30,7 @@ cfg.numrandomization = 500;
 cfg.neighbours       = neighbours;
 cfg.parameter   = 'cohspctrm';
 cfg.channel          = label;
-cfg.avgoverfreq = 'yes';
+% cfg.avgoverfreq = 'yes';
 
 design = zeros(2,2*subj);
 for i = 1:subj
